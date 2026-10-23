@@ -3,8 +3,7 @@ from discord.ext import commands
 import json
 import os
 
-from config import TOKEN, CINEMA_DATA_FILE
-
+from config import TOKEN, CINEMA_DATA_FILE, GUILD_ID
 
 class CinemaBot(commands.Bot):
     def __init__(self):
@@ -28,6 +27,8 @@ class CinemaBot(commands.Bot):
 
     def save_cinemas(self):
         try:
+            # Убедимся, что папка существует (на всякий случай)
+            os.makedirs(os.path.dirname(CINEMA_DATA_FILE), exist_ok=True)
             with open(CINEMA_DATA_FILE, "w", encoding="utf-8") as f:
                 json.dump(
                     {str(k): v for k, v in self.cinemas.items()},
@@ -37,10 +38,15 @@ class CinemaBot(commands.Bot):
             print(f"⚠️ Не удалось сохранить cinemas.json: {e}")
 
     async def setup_hook(self):
-        for ext in ["cogs.instruction", "cogs.create", "cogs.control", "cogs.avatar"]:
-            await self.load_extension(ext)
-        # sync глобально (может занять до часа) или на гильдию (мгновенно)
-        from config import GUILD_ID
+        # Загружаем модули из корня (без префикса cogs.)
+        for ext in ["instruction", "create", "control", "avatar"]:
+            try:
+                await self.load_extension(ext)
+                print(f"✅ Модуль {ext} загружен")
+            except Exception as e:
+                print(f"❌ Ошибка загрузки {ext}: {e}")
+        
+        # Синхронизация команд
         guild = discord.Object(id=GUILD_ID)
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
@@ -48,7 +54,6 @@ class CinemaBot(commands.Bot):
 
     async def on_ready(self):
         print(f"✅ Бот запущен как {self.user} (id: {self.user.id})")
-
 
 bot = CinemaBot()
 
