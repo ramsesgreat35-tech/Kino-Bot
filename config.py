@@ -1,7 +1,6 @@
 import os
 from dotenv import load_dotenv
 
-# Загружаем .env, если он есть (на хостинге он может игнорироваться)
 load_dotenv()
 
 TOKEN = os.getenv("TOKEN") or os.getenv("DISCORD_BOT_TOKEN")
