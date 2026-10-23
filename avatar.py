@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from cogs.create import create_cinema_channels
+from create import create_cinema_channels
 
 
 class AvatarCog(commands.Cog):
@@ -48,5 +48,5 @@ class AvatarCog(commands.Cog):
             await message.reply(f"❌ Ошибка при создании: `{e}`")
 
 
-async def setup_cog(bot: commands.Bot):
+async def setup(bot: commands.Bot):
     await bot.add_cog(AvatarCog(bot))
