@@ -23,7 +23,7 @@ class CreateCinemaModal(discord.ui.Modal, title="🎬 Создание кино�
     )
 
     async def on_submit(self, interaction: discord.Interaction):
-        from cogs.create import process_cinema_creation
+        from create import process_cinema_creation
         await process_cinema_creation(
             interaction,
             title=self.title_input.value.strip(),
@@ -88,5 +88,5 @@ async def send_instruction(channel: discord.TextChannel):
     await channel.send(embed=embed, view=CreateButton())
 
 
-async def setup_cog(bot: commands.Bot):
+async def setup(bot: commands.Bot):
     await bot.add_cog(InstructionCog(bot))
