@@ -10,9 +10,7 @@ async def process_cinema_creation(
     *,
     title: str,
     year: str | None,
-    genre: str | None,
-    category: str | None,
-    duration: str | None,
+    extra_info: str | None,
     description: str | None,
     avatar_url: str | None,
 ):
@@ -27,7 +25,7 @@ async def process_cinema_creation(
     await interaction.response.defer(ephemeral=True, thinking=True)
     try:
         await create_cinema_channels(
-            interaction, title, year, genre, category, duration, description, avatar_url
+            interaction, title, year, extra_info, description, avatar_url
         )
         await interaction.followup.send("✅ Кинотеатр создан!", ephemeral=True)
     except Exception as e:
@@ -36,8 +34,8 @@ async def process_cinema_creation(
 
 async def create_cinema_channels(
     interaction: discord.Interaction,
-    title: str, year: str | None, genre: str | None, category: str | None, 
-    duration: str | None, description: str | None, avatar_url: str | None,
+    title: str, year: str | None, extra_info: str | None, 
+    description: str | None, avatar_url: str | None,
 ):
     guild = interaction.guild
     owner = interaction.user
@@ -72,21 +70,9 @@ async def create_cinema_channels(
         title_text += f" ({year})"
     embed.title = title_text
     
-    # Собираем метаданные (Жанр, Категория, Длительность)
-    meta_lines = []
-    if genre:
-        meta_lines.append(f"🎭 **Жанр:** {genre}")
-    if category:
-        meta_lines.append(f"🔞 **Категория:** {category}")
-    if duration:
-        meta_lines.append(f"⏱️ **Длительность:** {duration}")
-        
-    meta_block = "\n".join(meta_lines)
-    
-    # Формируем описание
     desc_text = ""
-    if meta_block:
-        desc_text += f"{meta_block}\n\n"
+    if extra_info:
+        desc_text += f"> **Инфо:** {extra_info}\n\n"
     if description:
         desc_text += f"{description}"
     
@@ -117,8 +103,7 @@ async def create_cinema_channels(
         log_embed = discord.Embed(color=0x3498DB, title=f"🎬 Создан кинотеатр: {title}")
         log_desc = f"> **Создатель:** {owner.mention}\n> **Войс:** {voice_channel.mention}\n"
         if year: log_desc += f"> **Год:** {year}\n"
-        if genre: log_desc += f"> **Жанр:** {genre}\n"
-        if category: log_desc += f"> **Категория:** {category}\n"
+        if extra_info: log_desc += f"> **Инфо:** {extra_info}\n"
         
         log_embed.description = log_desc
         if avatar_url:
