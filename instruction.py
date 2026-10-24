@@ -7,9 +7,8 @@ from config import INSTRUCTION_CHANNEL_ID, PING_ROLE_ID
 class CreateCinemaModal(discord.ui.Modal, title="🎬 Создание кинотеатра"):
     title_input = discord.ui.TextInput(label="Название", max_length=80, required=True)
     year_input = discord.ui.TextInput(label="Год", max_length=4, required=False)
-    genre_input = discord.ui.TextInput(label="Жанр", max_length=50, required=False)
-    category_input = discord.ui.TextInput(label="Возраст (18+, 12+)", max_length=10, required=False)
-    duration_input = discord.ui.TextInput(label="Длительность", max_length=20, required=False)
+    # Объединили Жанр, Возраст и Время в одно поле
+    meta_input = discord.ui.TextInput(label="Жанр, Возраст, Длительность", placeholder="Комедия, 18+, 1ч 30м", max_length=100, required=False)
     description_input = discord.ui.TextInput(label="Описание", style=discord.TextStyle.paragraph, max_length=500, required=False)
     avatar_input = discord.ui.TextInput(label="Ссылка на аватарку", required=False)
 
@@ -19,9 +18,7 @@ class CreateCinemaModal(discord.ui.Modal, title="🎬 Создание кино�
             interaction,
             title=self.title_input.value.strip(),
             year=self.year_input.value.strip() if self.year_input.value else None,
-            genre=self.genre_input.value.strip() if self.genre_input.value else None,
-            category=self.category_input.value.strip() if self.category_input.value else None,
-            duration=self.duration_input.value.strip() if self.duration_input.value else None,
+            meta=self.meta_input.value.strip() if self.meta_input.value else None,
             description=self.description_input.value.strip() if self.description_input.value else None,
             avatar_url=self.avatar_input.value.strip() if self.avatar_input.value else None,
         )
