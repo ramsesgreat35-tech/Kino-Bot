@@ -1,43 +1,123 @@
 import discord
 from discord.ext import commands
+import re
 
-class CinemaPanelView(discord.ui.View):
-    def __init__(self, owner_id: int, voice_id: int):
-        super().__init__(timeout=None)
-        self.owner_id = owner_id
-        self.voice_id = voice_id
+from config import CINEMA_CATEGORY_ID, PING_ROLE_ID, LOG_CHANNEL_ID
+
+
+async def process_cinema_creation(
+    interaction: discord.Interaction,
+    *,
+    title: str, year: str | None, meta: str | None, 
+    description: str | None, avatar_url: str | None,
+):
+    bot: commands.Bot = interaction.client
+
+    if PING_ROLE_ID and not any(r.id == PING_ROLE_ID for r in interaction.user.roles):
+        return await interaction.response.send_message("❌ У тебя нет роли для создания кинотеатра.", ephemeral=True)
+
+    if avatar_url and not re.match(r"^https?://", avatar_url):
+        avatar_url = None
+
+    await interaction.response.defer(ephemeral=True, thinking=True)
+    try:
+        await create_cinema_voice(interaction, title, year, meta, description, avatar_url)
+        await interaction.followup.send("✅ Кинотеатр создан! Заходи в войс.", ephemeral=True)
+    except Exception as e:
+        await interaction.followup.send(f"❌ Ошибка: `{e}`", ephemeral=True)
+
+
+async def create_cinema_voice(
+    interaction: discord.Interaction,
+    title: str, year: str | None, meta: str | None, 
+    description: str | None, avatar_url: str | None,
+):
+    guild = interaction.guild
+    owner = interaction.user
+    bot: commands.Bot = interaction.client
+
+    category_ch = discord.utils.get(guild.categories, id=CINEMA_CATEGORY_ID)
+    role = guild.get_role(PING_ROLE_ID) if PING_ROLE_ID else guild.default_role
+
+    # --- Создаем Войс-канал ---
+    voice_overwrites = {
+        guild.default_role: discord.PermissionOverwrite(view_channel=False, connect=False, speak=False),
+        role: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True, send_messages=True, read_message_history=True),
+        owner: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True, send_messages=True, manage_channels=True),
+    }
+    voice_channel = await guild.create_voice_channel(name=f"🎬 {title}"[:100], category=category_ch, overwrites=voice_overwrites, position=0)
+
+    # --- КРАСИВЫЙ EMBED ---
+    embed = discord.Embed(color=0x2ECC71)
+    
+    title_text = f"🍿 {title}"
+    if year: title_text += f" ({year})"
+    embed.title = title_text
+    
+    # Разбиваем строку "Комедия, 18+, 1ч 30м" на части
+    meta_elements = []
+    if meta:
+        parts = [p.strip() for p in meta.split(",") if p.strip()]
+        if len(parts) >= 1: meta_elements.append(f"🎭 **Жанр:** {parts[0]}")
+        if len(parts) >= 2: meta_elements.append(f"🔞 **Возраст:** {parts[1]}")
+        if len(parts) >= 3: meta_elements.append(f"⏱️ **Время:** {parts[2]}")
+    
+    # Блок с метаданными
+    if meta_elements:
+        embed.description = "\n".join(meta_elements) + "\n\n"
+    else:
+        embed.description = ""
+
+    # Основное описание
+    if description:
+        embed.description += description
         
-        self.close_cinema.custom_id = f"close_cinema:{voice_id}"
-
-    @discord.ui.button(label="Закрыть кинотеатр", emoji="🗑️", style=discord.ButtonStyle.danger)
-    async def close_cinema(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.owner_id:
-            return await interaction.response.send_message("❌ Только создатель может закрыть кинотеатр.", ephemeral=True)
+    if not embed.description:
+        embed.description = "*Описание отсутствует.*"
+    
+    if avatar_url:
+        embed.set_image(url=avatar_url)
         
-        await interaction.response.send_message("🗑️ Кинотеатр закрывается...", ephemeral=True)
+    embed.set_footer(text=f"Организатор: {owner.display_name}", icon_url=owner.display_avatar.url if owner.display_avatar else None)
+    
+    await voice_channel.send(embed=embed)
 
-        bot: commands.Bot = interaction.client
-        voice = interaction.guild.get_channel(self.voice_id)
+    # --- Сохраняем ---
+    bot.cinemas[voice_channel.id] = {
+        "voice_id": voice_channel.id,
+        "owner_id": owner.id,
+        "title": title,
+    }
+    bot.save_cinemas()
 
-        if voice:
-            try:
-                await voice.delete()
-            except discord.HTTPException:
-                pass
+    # --- Лог-канал ---
+    log_channel = guild.get_channel(LOG_CHANNEL_ID)
+    if log_channel:
+        log_embed = discord.Embed(color=0x3498DB, title=f"🎬 Создан кинотеатр: {title}")
+        log_desc = f"> **Организатор:** {owner.mention}\n> **Войс:** {voice_channel.mention}\n"
+        if meta: log_desc += f"> **Инфо:** {meta}\n"
+        log_embed.description = log_desc
+        if avatar_url:
+            log_embed.set_thumbnail(url=avatar_url)
+        await log_channel.send(embed=log_embed)
 
-        bot.cinemas.pop(self.voice_id, None)
-        bot.save_cinemas()
+    # --- ПАНЕЛЬ УПРАВЛЕНИЯ ---
+    from control import CinemaPanelView
+    view = CinemaPanelView(owner_id=owner.id, voice_id=voice_channel.id)
+    
+    panel_embed = discord.Embed(
+        color=0x2ECC71,
+        description=f"👑 {owner.mention}, управление показом.\n> Нажмите кнопку ниже, чтобы закрыть кинотеатр."
+    )
+    
+    await voice_channel.send(embed=panel_embed, view=view)
 
-class ControlCog(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    return voice_channel
+
+
+class CreateCog(commands.Cog):
+    def __init__(self, bot):
         self.bot = bot
 
-    async def cog_load(self):
-        for voice_id, data in self.bot.cinemas.items():
-            self.bot.add_view(CinemaPanelView(
-                owner_id=data["owner_id"],
-                voice_id=voice_id,
-            ))
-
 async def setup(bot: commands.Bot):
-    await bot.add_cog(ControlCog(bot))
+    await bot.add_cog(CreateCog(bot))
