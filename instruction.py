@@ -4,50 +4,47 @@ from discord import app_commands
 
 from config import INSTRUCTION_CHANNEL_ID, PING_ROLE_ID
 
-class CreateCinemaModal(discord.ui.Modal, title="🎬 Создание кинотеатра"):
-    # 1 поле
-    title_input = discord.ui.TextInput(
-        label="Название фильма/аниме", 
-        max_length=80, 
-        required=True
-    )
-    # 2 поле
-    year_input = discord.ui.TextInput(
-        label="Год (необязательно)", 
-        max_length=4, 
-        required=False
-    )
-    # 3 поле - объединили всё сюда
-    extra_info = discord.ui.TextInput(
-        label="Жанр, Категория, Длительность", 
-        placeholder="Например: Комедия | 18+ | 1ч 30м",
-        max_length=100, 
-        required=False
-    )
-    # 4 поле
-    description_input = discord.ui.TextInput(
-        label="Описание (необязательно)", 
-        style=discord.TextStyle.paragraph, 
-        max_length=500, 
-        required=False
-    )
-    # 5 поле
-    avatar_input = discord.ui.TextInput(
-        label="Ссылка на аватарку", 
-        required=False
-    )
+# --- ВТОРАЯ МОДАЛКА (Детали) ---
+class CinemaDetailsModal(discord.ui.Modal, title="🎬 Детали фильма (Шаг 2/2)"):
+    genre_input = discord.ui.TextInput(label="Жанр (например, Комедия)", max_length=50, required=False)
+    category_input = discord.ui.TextInput(label="Возраст (например, 18+)", max_length=10, required=False)
+    duration_input = discord.ui.TextInput(label="Длительность (например, 1ч 30м)", max_length=20, required=False)
+    avatar_input = discord.ui.TextInput(label="Ссылка на аватарку", required=False)
+
+    def __init__(self, title: str, year: str, description: str):
+        super().__init__()
+        # Сохраняем данные из первой модалки
+        self.c_title = title
+        self.c_year = year
+        self.c_desc = description
 
     async def on_submit(self, interaction: discord.Interaction):
         from create import process_cinema_creation
-        
-        # Извлекаем доп. инфо и передаем как один блок
         await process_cinema_creation(
             interaction,
-            title=self.title_input.value.strip(),
-            year=self.year_input.value.strip() if self.year_input.value else None,
-            extra_info=self.extra_info.value.strip() if self.extra_info.value else None,
-            description=self.description_input.value.strip() if self.description_input.value else None,
+            title=self.c_title,
+            year=self.c_year,
+            genre=self.genre_input.value.strip() if self.genre_input.value else None,
+            category=self.category_input.value.strip() if self.category_input.value else None,
+            duration=self.duration_input.value.strip() if self.duration_input.value else None,
+            description=self.c_desc,
             avatar_url=self.avatar_input.value.strip() if self.avatar_input.value else None,
+        )
+
+# --- ПЕРВАЯ МОДАЛКА (Основное) ---
+class CreateCinemaModal(discord.ui.Modal, title="🎬 Создание кинотеатра (Шаг 1/2)"):
+    title_input = discord.ui.TextInput(label="Название фильма/аниме", max_length=80, required=True)
+    year_input = discord.ui.TextInput(label="Год (необязательно)", max_length=4, required=False)
+    description_input = discord.ui.TextInput(label="Описание (необязательно)", style=discord.TextStyle.paragraph, max_length=500, required=False)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # Вызываем вторую модалку, передавая данные
+        await interaction.response.send_modal(
+            CinemaDetailsModal(
+                title=self.title_input.value.strip(),
+                year=self.year_input.value.strip(),
+                description=self.description_input.value.strip()
+            )
         )
 
 class CreateButton(discord.ui.View):
@@ -82,7 +79,7 @@ async def send_instruction(channel: discord.TextChannel):
             "**📌 Как это работает:**\n"
             "> 1️⃣ Нажмите кнопку **«Создать кинотеатр»** ниже.\n"
             "> 2️⃣ Заполните форму (многое можно пропустить).\n"
-            "> 3️⃣ Бот создаст голосовой и текстовый каналы.\n"
+            "> 3️⃣ Бот создаст голосовой канал.\n"
             "> 4️⃣ Заходите в войс и включайте демонстрацию экрана!\n\n"
             "**📜 Правила:**\n"
             "> 👑 Создатель управляет каналом.\n"
