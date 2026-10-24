@@ -5,13 +5,41 @@ from discord import app_commands
 from config import INSTRUCTION_CHANNEL_ID, PING_ROLE_ID
 
 class CreateCinemaModal(discord.ui.Modal, title="🎬 Создание кинотеатра"):
-    title_input = discord.ui.TextInput(label="Название фильма/аниме", max_length=80, required=True)
-    year_input = discord.ui.TextInput(label="Год (необязательно)", max_length=4, required=False)
-    genre_input = discord.ui.TextInput(label="Жанр (необязательно)", max_length=50, required=False)
-    category_input = discord.ui.TextInput(label="Категория (например, 18+) (необязательно)", max_length=10, required=False)
-    duration_input = discord.ui.TextInput(label="Длительность (например, 1ч 30м) (необязательно)", max_length=20, required=False)
-    description_input = discord.ui.TextInput(label="Описание (необязательно)", style=discord.TextStyle.paragraph, max_length=500, required=False)
-    avatar_input = discord.ui.TextInput(label="Ссылка на аватарку (необязательно)", required=False)
+    title_input = discord.ui.TextInput(
+        label="Название фильма/аниме", 
+        max_length=80, 
+        required=True
+    )
+    year_input = discord.ui.TextInput(
+        label="Год (необязательно)", 
+        max_length=4, 
+        required=False
+    )
+    genre_input = discord.ui.TextInput(
+        label="Жанр (необязательно)", 
+        max_length=50, 
+        required=False
+    )
+    category_input = discord.ui.TextInput(
+        label="Категория 18+, 13+...", 
+        max_length=10, 
+        required=False
+    )
+    duration_input = discord.ui.TextInput(
+        label="Длительность (1ч 30м)", 
+        max_length=20, 
+        required=False
+    )
+    description_input = discord.ui.TextInput(
+        label="Описание (необязательно)", 
+        style=discord.TextStyle.paragraph, 
+        max_length=500, 
+        required=False
+    )
+    avatar_input = discord.ui.TextInput(
+        label="Ссылка на аватарку", 
+        required=False
+    )
 
     async def on_submit(self, interaction: discord.Interaction):
         from create import process_cinema_creation
