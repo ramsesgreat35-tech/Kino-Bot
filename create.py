@@ -8,7 +8,7 @@ from config import CINEMA_CATEGORY_ID, PING_ROLE_ID, LOG_CHANNEL_ID
 async def process_cinema_creation(
     interaction: discord.Interaction,
     *,
-    title: str, meta: str | None, 
+    title: str, year: str | None, meta: str | None, 
     description: str | None, avatar_url: str | None,
 ):
     bot: commands.Bot = interaction.client
@@ -21,7 +21,7 @@ async def process_cinema_creation(
 
     await interaction.response.defer(ephemeral=True, thinking=True)
     try:
-        await create_cinema_voice(interaction, title, meta, description, avatar_url)
+        await create_cinema_voice(interaction, title, year, meta, description, avatar_url)
         await interaction.followup.send("✅ Кинотеатр создан! Заходи в войс.", ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ Ошибка: `{e}`", ephemeral=True)
@@ -29,7 +29,7 @@ async def process_cinema_creation(
 
 async def create_cinema_voice(
     interaction: discord.Interaction,
-    title: str, meta: str | None, 
+    title: str, year: str | None, meta: str | None, 
     description: str | None, avatar_url: str | None,
 ):
     guild = interaction.guild
@@ -47,54 +47,51 @@ async def create_cinema_voice(
     }
     voice_channel = await guild.create_voice_channel(name=f"🎬 {title}"[:100], category=category_ch, overwrites=voice_overwrites, position=0)
 
-    # --- РАЗБИРАЕМ СТРОКУ ---
+    # --- РАЗБИРАЕМ ЖАНР, ВОЗРАСТ, ВРЕМЯ ---
     parts = []
     if meta:
         parts = [p.strip() for p in meta.split(",") if p.strip()]
     
-    year = parts[0] if len(parts) > 0 else None
-    genre = parts[1] if len(parts) > 1 else None
-    age = parts[2] if len(parts) > 2 else None
-    duration = parts[3] if len(parts) > 3 else None
+    genre = parts[0] if len(parts) > 0 else None
+    age = parts[1] if len(parts) > 1 else None
+    duration = parts[2] if len(parts) > 2 else None
 
-    # --- 1 СООБЩЕНИЕ: СКРЫТЫЙ ПИНГ И КАРТИНКА ---
-    # Если картинка есть, отправляем её отдельным сообщением с пингом
+    # --- СОЗДАЕМ ИДЕАЛЬНЫЙ EMBED ---
+    embed = discord.Embed(color=0x2ECC71)
+    
+    # 1. Картинка сверху (если есть)
     if avatar_url:
-        top_embed = discord.Embed(color=0x2ECC71)
-        top_embed.set_image(url=avatar_url)
-        await voice_channel.send(content=f"||<@&{PING_ROLE_ID}>||", embed=top_embed)
-    else:
-        # Если картинки нет, просто пингуем
-        await voice_channel.send(content=f"||<@&{PING_ROLE_ID}>||")
+        embed.set_image(url=avatar_url)
 
-    # --- 2 СООБЩЕНИЕ: КРАСИВЫЙ ТЕКСТОВЫЙ HUD ---
-    # Делаем заголовок большим (через заголовок эмбеда)
-    title_text = f"# {title}"
-    if year: 
-        title_text += f" (Фильм {year})"
+    # 2. Название ОГРОМНЫМ шрифтом через # и год в скобках
+    header = f"# {title}"
+    if year:
+        header += f" (Фильм {year})"
     
-    embed = discord.Embed(color=0x2ECC71, title=title_text)
-    
-    # Описание маленьким шрифтом
+    # 3. Формируем описание
+    # Сначала огромный заголовок, потом маленький текст
+    desc_text = f"{header}\n"
     if description:
-        embed.description = description
+        desc_text += f"-# {description}\n\n" # -# делает текст маленьким и серым (спойлер-стиль шрифта)
     else:
-        embed.description = "*Описание отсутствует.*"
+        desc_text += "\n"
 
-    # Разделитель (пустая строка)
-    embed.add_field(name="\u200b", value="\u200b", inline=False)
+    # 4. Нижняя панель с Жанром, Категорией и Временем (через разделитель)
+    bottom_bar = []
+    if genre: bottom_bar.append(f"🎭 **Жанр:** {genre}")
+    if age: bottom_bar.append(f"🚫 **Категория:** {age}")
+    if duration: bottom_bar.append(f"⏱️ **Длительность:** {duration}")
+    
+    if bottom_bar:
+        desc_text += "  |  ".join(bottom_bar)
 
-    # Поля с иконками (как на скрине)
-    if genre:
-        embed.add_field(name="🎭 Жанры:", value=genre, inline=True)
-    if age:
-        embed.add_field(name="🚫 Категория:", value=age, inline=True)
-    if duration:
-        embed.add_field(name="⏱️ Длительность:", value=duration, inline=True)
+    embed.description = desc_text
 
+    # Футер с создателем
     embed.set_footer(text=f"Проводит: {owner.display_name}", icon_url=owner.display_avatar.url if owner.display_avatar else None)
     
-    await voice_channel.send(embed=embed)
+    # Отправляем скрытый пинг и наш идеальный embed
+    await voice_channel.send(content=f"||<@&{PING_ROLE_ID}>||", embed=embed)
 
     # --- СОХРАНЯЕМ ---
     bot.cinemas[voice_channel.id] = {
