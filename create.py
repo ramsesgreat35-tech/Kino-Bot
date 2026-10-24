@@ -9,7 +9,10 @@ async def process_cinema_creation(
     interaction: discord.Interaction,
     *,
     title: str,
-    year: str,
+    year: str | None,
+    genre: str | None,
+    category: str | None,
+    duration: str | None,
     description: str | None,
     avatar_url: str | None,
 ):
@@ -23,7 +26,9 @@ async def process_cinema_creation(
 
     await interaction.response.defer(ephemeral=True, thinking=True)
     try:
-        await create_cinema_channels(interaction, title, year, description, avatar_url)
+        await create_cinema_channels(
+            interaction, title, year, genre, category, duration, description, avatar_url
+        )
         await interaction.followup.send("✅ Кинотеатр создан!", ephemeral=True)
     except Exception as e:
         await interaction.followup.send(f"❌ Ошибка: `{e}`", ephemeral=True)
@@ -31,13 +36,14 @@ async def process_cinema_creation(
 
 async def create_cinema_channels(
     interaction: discord.Interaction,
-    title: str, year: str, description: str | None, avatar_url: str | None,
+    title: str, year: str | None, genre: str | None, category: str | None, 
+    duration: str | None, description: str | None, avatar_url: str | None,
 ):
     guild = interaction.guild
     owner = interaction.user
     bot: commands.Bot = interaction.client
 
-    category = discord.utils.get(guild.categories, id=CINEMA_CATEGORY_ID)
+    category_ch = discord.utils.get(guild.categories, id=CINEMA_CATEGORY_ID)
     role = guild.get_role(PING_ROLE_ID) if PING_ROLE_ID else guild.default_role
 
     # --- Войс ---
@@ -46,7 +52,7 @@ async def create_cinema_channels(
         role: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True),
         owner: discord.PermissionOverwrite(view_channel=True, connect=True, speak=True, mute_members=True, deafen_members=True, move_members=True, manage_channels=True),
     }
-    voice_channel = await guild.create_voice_channel(name=f"🎬 {title}"[:100], category=category, overwrites=voice_overwrites, position=0)
+    voice_channel = await guild.create_voice_channel(name=f"🎬 {title}"[:100], category=category_ch, overwrites=voice_overwrites, position=0)
 
     # --- Текст ---
     slug = re.sub(r"\s+", "-", title.lower())
@@ -55,12 +61,39 @@ async def create_cinema_channels(
         role: discord.PermissionOverwrite(view_channel=True, send_messages=True, read_message_history=True),
         owner: discord.PermissionOverwrite(view_channel=True, send_messages=True, manage_channels=True),
     }
-    text_channel = await guild.create_text_channel(name=f"💬-{slug}"[:100], category=category, overwrites=text_overwrites, position=0)
+    text_channel = await guild.create_text_channel(name=f"💬-{slug}"[:100], category=category_ch, overwrites=text_overwrites, position=0)
 
     # --- КРАСИВЫЙ EMBED ---
     embed = discord.Embed(color=0x2ECC71)
-    embed.title = f"🍿 {title}"
-    embed.description = f"> **Год:** {year}\n\n{description if description else '*Описание не указано.*'}"
+    
+    # Заголовок (с годом, если он есть)
+    title_text = f"🍿 {title}"
+    if year:
+        title_text += f" ({year})"
+    embed.title = title_text
+    
+    # Собираем метаданные (Жанр, Категория, Длительность)
+    meta_lines = []
+    if genre:
+        meta_lines.append(f"🎭 **Жанр:** {genre}")
+    if category:
+        meta_lines.append(f"🔞 **Категория:** {category}")
+    if duration:
+        meta_lines.append(f"⏱️ **Длительность:** {duration}")
+        
+    meta_block = "\n".join(meta_lines)
+    
+    # Формируем описание
+    desc_text = ""
+    if meta_block:
+        desc_text += f"{meta_block}\n\n"
+    if description:
+        desc_text += f"{description}"
+    
+    if desc_text:
+        embed.description = desc_text
+    else:
+        embed.description = "*Описание не указано.*"
     
     if avatar_url:
         embed.set_image(url=avatar_url)
@@ -75,9 +108,6 @@ async def create_cinema_channels(
         "text_id": text_channel.id,
         "owner_id": owner.id,
         "title": title,
-        "year": year,
-        "description": description,
-        "avatar_url": avatar_url,
     }
     bot.save_cinemas()
 
@@ -85,12 +115,17 @@ async def create_cinema_channels(
     log_channel = guild.get_channel(LOG_CHANNEL_ID)
     if log_channel:
         log_embed = discord.Embed(color=0x3498DB, title=f"🎬 Создан кинотеатр: {title}")
-        log_embed.description = f"> **Год:** {year}\n> **Создатель:** {owner.mention}\n> **Войс:** {voice_channel.mention}"
+        log_desc = f"> **Создатель:** {owner.mention}\n> **Войс:** {voice_channel.mention}\n"
+        if year: log_desc += f"> **Год:** {year}\n"
+        if genre: log_desc += f"> **Жанр:** {genre}\n"
+        if category: log_desc += f"> **Категория:** {category}\n"
+        
+        log_embed.description = log_desc
         if avatar_url:
             log_embed.set_thumbnail(url=avatar_url)
         await log_channel.send(embed=log_embed)
 
-    # --- ПАНЕЛЬ УПРАВЛЕНИЯ (Висит постоянно) ---
+    # --- ПАНЕЛЬ УПРАВЛЕНИЯ ---
     from control import CinemaPanelView
     view = CinemaPanelView(owner_id=owner.id, voice_id=voice_channel.id, text_id=text_channel.id)
     
