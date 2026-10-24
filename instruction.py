@@ -4,47 +4,26 @@ from discord import app_commands
 
 from config import INSTRUCTION_CHANNEL_ID, PING_ROLE_ID
 
-# --- ВТОРАЯ МОДАЛКА (Детали) ---
-class CinemaDetailsModal(discord.ui.Modal, title="🎬 Детали фильма (Шаг 2/2)"):
-    genre_input = discord.ui.TextInput(label="Жанр (например, Комедия)", max_length=50, required=False)
-    category_input = discord.ui.TextInput(label="Возраст (например, 18+)", max_length=10, required=False)
-    duration_input = discord.ui.TextInput(label="Длительность (например, 1ч 30м)", max_length=20, required=False)
+class CreateCinemaModal(discord.ui.Modal, title="🎬 Создание кинотеатра"):
+    title_input = discord.ui.TextInput(label="Название", max_length=80, required=True)
+    year_input = discord.ui.TextInput(label="Год", max_length=4, required=False)
+    genre_input = discord.ui.TextInput(label="Жанр", max_length=50, required=False)
+    category_input = discord.ui.TextInput(label="Возраст (18+, 12+)", max_length=10, required=False)
+    duration_input = discord.ui.TextInput(label="Длительность", max_length=20, required=False)
+    description_input = discord.ui.TextInput(label="Описание", style=discord.TextStyle.paragraph, max_length=500, required=False)
     avatar_input = discord.ui.TextInput(label="Ссылка на аватарку", required=False)
-
-    def __init__(self, title: str, year: str, description: str):
-        super().__init__()
-        # Сохраняем данные из первой модалки
-        self.c_title = title
-        self.c_year = year
-        self.c_desc = description
 
     async def on_submit(self, interaction: discord.Interaction):
         from create import process_cinema_creation
         await process_cinema_creation(
             interaction,
-            title=self.c_title,
-            year=self.c_year,
+            title=self.title_input.value.strip(),
+            year=self.year_input.value.strip() if self.year_input.value else None,
             genre=self.genre_input.value.strip() if self.genre_input.value else None,
             category=self.category_input.value.strip() if self.category_input.value else None,
             duration=self.duration_input.value.strip() if self.duration_input.value else None,
-            description=self.c_desc,
+            description=self.description_input.value.strip() if self.description_input.value else None,
             avatar_url=self.avatar_input.value.strip() if self.avatar_input.value else None,
-        )
-
-# --- ПЕРВАЯ МОДАЛКА (Основное) ---
-class CreateCinemaModal(discord.ui.Modal, title="🎬 Создание кинотеатра (Шаг 1/2)"):
-    title_input = discord.ui.TextInput(label="Название фильма/аниме", max_length=80, required=True)
-    year_input = discord.ui.TextInput(label="Год (необязательно)", max_length=4, required=False)
-    description_input = discord.ui.TextInput(label="Описание (необязательно)", style=discord.TextStyle.paragraph, max_length=500, required=False)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        # Вызываем вторую модалку, передавая данные
-        await interaction.response.send_modal(
-            CinemaDetailsModal(
-                title=self.title_input.value.strip(),
-                year=self.year_input.value.strip(),
-                description=self.description_input.value.strip()
-            )
         )
 
 class CreateButton(discord.ui.View):
