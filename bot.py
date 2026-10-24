@@ -12,7 +12,7 @@ class CinemaBot(commands.Bot):
         intents.members = True
         intents.voice_states = True
         super().__init__(command_prefix="!", intents=intents)
-        self.pending_avatars: dict[int, dict] = {}
+        self.pending_avatars = {}
         self.cinemas: dict[int, dict] = self._load_cinemas()
 
     def _load_cinemas(self) -> dict:
@@ -20,40 +20,64 @@ class CinemaBot(commands.Bot):
             try:
                 with open(CINEMA_DATA_FILE, "r", encoding="utf-8") as f:
                     return {int(k): v for k, v in json.load(f).items()}
-            except (json.JSONDecodeError, ValueError):
-                print("⚠️ cinemas.json повреждён — начинаем с пустого.")
+            except Exception:
                 return {}
         return {}
 
     def save_cinemas(self):
         try:
-            # Убедимся, что папка существует (на всякий случай)
             os.makedirs(os.path.dirname(CINEMA_DATA_FILE), exist_ok=True)
             with open(CINEMA_DATA_FILE, "w", encoding="utf-8") as f:
-                json.dump(
-                    {str(k): v for k, v in self.cinemas.items()},
-                    f, ensure_ascii=False, indent=2,
-                )
+                json.dump({str(k): v for k, v in self.cinemas.items()}, f, ensure_ascii=False, indent=2)
         except OSError as e:
-            print(f"⚠️ Не удалось сохранить cinemas.json: {e}")
+            print(f"⚠️ Ошибка сохранения: {e}")
 
     async def setup_hook(self):
-        # Загружаем модули из корня (без префикса cogs.)
-        for ext in ["instruction", "create", "control", "avatar"]:
+        for ext in ["instruction", "create", "control"]:
             try:
                 await self.load_extension(ext)
                 print(f"✅ Модуль {ext} загружен")
             except Exception as e:
                 print(f"❌ Ошибка загрузки {ext}: {e}")
         
-        # Синхронизация команд
         guild = discord.Object(id=GUILD_ID)
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
-        print("✅ Slash-команды синхронизированы")
+        print("✅ Команды синхронизированы")
 
     async def on_ready(self):
-        print(f"✅ Бот запущен как {self.user} (id: {self.user.id})")
+        print(f"✅ Бот запущен как {self.user}")
+
+    # --- НОВОЕ СОБЫТИЕ: Отключение хоста ---
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        # Если человек был в канале, а теперь вышел (или канал сменился)
+        if before.channel and not after.channel:
+            # Проверяем, является ли этот войс нашим кинотеатром
+            voice_id = before.channel.id
+            if voice_id in self.cinemas:
+                data = self.cinemas[voice_id]
+                
+                # Если из канала вышел именно создатель
+                if member.id == data["owner_id"]:
+                    text_channel = self.get_channel(data["text_id"])
+                    
+                    # Удаляем текстовый канал
+                    if text_channel:
+                        try:
+                            await text_channel.delete()
+                        except discord.HTTPException:
+                            pass
+                    
+                    # Удаляем войс
+                    try:
+                        await before.channel.delete()
+                    except discord.HTTPException:
+                        pass
+                    
+                    # Чистим базу
+                    self.cinemas.pop(voice_id, None)
+                    self.save_cinemas()
 
 bot = CinemaBot()
 
