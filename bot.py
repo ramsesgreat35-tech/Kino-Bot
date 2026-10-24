@@ -12,7 +12,6 @@ class CinemaBot(commands.Bot):
         intents.members = True
         intents.voice_states = True
         super().__init__(command_prefix="!", intents=intents)
-        self.pending_avatars = {}
         self.cinemas: dict[int, dict] = self._load_cinemas()
 
     def _load_cinemas(self) -> dict:
@@ -48,34 +47,20 @@ class CinemaBot(commands.Bot):
     async def on_ready(self):
         print(f"✅ Бот запущен как {self.user}")
 
-    # --- НОВОЕ СОБЫТИЕ: Отключение хоста ---
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        # Если человек был в канале, а теперь вышел (или канал сменился)
         if before.channel and not after.channel:
-            # Проверяем, является ли этот войс нашим кинотеатром
             voice_id = before.channel.id
             if voice_id in self.cinemas:
                 data = self.cinemas[voice_id]
                 
-                # Если из канала вышел именно создатель
+                # Если вышел сам создатель
                 if member.id == data["owner_id"]:
-                    text_channel = self.get_channel(data["text_id"])
-                    
-                    # Удаляем текстовый канал
-                    if text_channel:
-                        try:
-                            await text_channel.delete()
-                        except discord.HTTPException:
-                            pass
-                    
-                    # Удаляем войс
                     try:
                         await before.channel.delete()
                     except discord.HTTPException:
                         pass
                     
-                    # Чистим базу
                     self.cinemas.pop(voice_id, None)
                     self.save_cinemas()
 
