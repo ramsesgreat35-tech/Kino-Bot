@@ -2,11 +2,10 @@ import discord
 from discord.ext import commands
 
 class CinemaPanelView(discord.ui.View):
-    def __init__(self, owner_id: int, voice_id: int, text_id: int):
+    def __init__(self, owner_id: int, voice_id: int):
         super().__init__(timeout=None)
         self.owner_id = owner_id
         self.voice_id = voice_id
-        self.text_id = text_id
         
         self.close_cinema.custom_id = f"close_cinema:{voice_id}"
 
@@ -19,14 +18,12 @@ class CinemaPanelView(discord.ui.View):
 
         bot: commands.Bot = interaction.client
         voice = interaction.guild.get_channel(self.voice_id)
-        text = interaction.guild.get_channel(self.text_id)
 
-        for ch in (voice, text):
-            if ch:
-                try:
-                    await ch.delete()
-                except discord.HTTPException:
-                    pass
+        if voice:
+            try:
+                await voice.delete()
+            except discord.HTTPException:
+                pass
 
         bot.cinemas.pop(self.voice_id, None)
         bot.save_cinemas()
@@ -40,7 +37,6 @@ class ControlCog(commands.Cog):
             self.bot.add_view(CinemaPanelView(
                 owner_id=data["owner_id"],
                 voice_id=voice_id,
-                text_id=data["text_id"],
             ))
 
 async def setup(bot: commands.Bot):
