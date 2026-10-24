@@ -16,4 +16,7 @@ CINEMA_CATEGORY_ID = int(os.getenv("CINEMA_CATEGORY_ID", "0"))
 _ping = os.getenv("PING_ROLE_ID", "").strip()
 PING_ROLE_ID = int(_ping) if _ping.isdigit() else None
 
+# Канал для логов
+LOG_CHANNEL_ID = 1563166854359425045 
+
 CINEMA_DATA_FILE = os.getenv("CINEMA_DATA_FILE", "/app/data/cinemas.json")
