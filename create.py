@@ -50,30 +50,40 @@ async def create_cinema_voice(
     # --- КРАСИВЫЙ EMBED ДЛЯ ЧАТА ВОЙСА ---
     embed = discord.Embed(color=0x2ECC71)
     
-    # Заголовок
     title_text = f"🍿 {title}"
     if year: title_text += f" ({year})"
     embed.title = title_text
     
-    # Собираем описание, если есть
-    if description:
-        embed.description = description
-        
-    # Добавляем поля по одному (без колхоза)
+    # Собираем красивую строку с метаданными через разделитель
+    meta_elements = []
     if genre:
-        embed.add_field(name="🎭 Жанр", value=genre, inline=True)
+        meta_elements.append(f"🎭 {genre}")
     if category:
-        embed.add_field(name="🔞 Возраст", value=category, inline=True)
+        meta_elements.append(f"🔞 {category}")
     if duration:
-        embed.add_field(name="⏱️ Длительность", value=duration, inline=True)
+        meta_elements.append(f"⏱️ {duration}")
         
-    # Картинка
+    if meta_elements:
+        # Соединяем элементы красивой вертикальной чертой
+        meta_string = "  |  ".join(meta_elements)
+        # Добавляем цитату, чтобы визуально выделить
+        embed.description = f"> {meta_string}\n\n"
+    else:
+        embed.description = ""
+
+    # Добавляем описание ниже
+    if description:
+        embed.description += description
+        
+    if not embed.description:
+        embed.description = "*Описание отсутствует.*"
+    
     if avatar_url:
         embed.set_image(url=avatar_url)
         
     embed.set_footer(text=f"Организатор: {owner.display_name}", icon_url=owner.display_avatar.url if owner.display_avatar else None)
     
-    # Отправляем embed прямо в текстовый чат голосового канала
+    # Отправляем HUD в текстовый чат голосового канала
     await voice_channel.send(embed=embed)
 
     # --- Сохраняем ---
@@ -94,13 +104,13 @@ async def create_cinema_voice(
             log_embed.set_thumbnail(url=avatar_url)
         await log_channel.send(embed=log_embed)
 
-    # --- ПАНЕЛЬ УПРАВЛЕНИЯ (В том же чате войса) ---
+    # --- ПАНЕЛЬ УПРАВЛЕНИЯ (Тот же зеленый HUD) ---
     from control import CinemaPanelView
     view = CinemaPanelView(owner_id=owner.id, voice_id=voice_channel.id)
     
     panel_embed = discord.Embed(
-        color=0x2ECC71, # Тот же зеленый
-        description=f"👑 {owner.mention}, панель управления кинотеатром.\n> Нажмите кнопку ниже, чтобы завершить показ."
+        color=0x2ECC71,
+        description=f"👑 {owner.mention}, управление показом.\n> Нажмите кнопку ниже, чтобы закрыть кинотеатр."
     )
     
     await voice_channel.send(embed=panel_embed, view=view)
