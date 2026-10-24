@@ -5,37 +5,33 @@ from discord import app_commands
 from config import INSTRUCTION_CHANNEL_ID, PING_ROLE_ID
 
 class CreateCinemaModal(discord.ui.Modal, title="🎬 Создание кинотеатра"):
+    # 1 поле
     title_input = discord.ui.TextInput(
         label="Название фильма/аниме", 
         max_length=80, 
         required=True
     )
+    # 2 поле
     year_input = discord.ui.TextInput(
         label="Год (необязательно)", 
         max_length=4, 
         required=False
     )
-    genre_input = discord.ui.TextInput(
-        label="Жанр (необязательно)", 
-        max_length=50, 
+    # 3 поле - объединили всё сюда
+    extra_info = discord.ui.TextInput(
+        label="Жанр, Категория, Длительность", 
+        placeholder="Например: Комедия | 18+ | 1ч 30м",
+        max_length=100, 
         required=False
     )
-    category_input = discord.ui.TextInput(
-        label="Категория 18+, 13+...", 
-        max_length=10, 
-        required=False
-    )
-    duration_input = discord.ui.TextInput(
-        label="Длительность (1ч 30м)", 
-        max_length=20, 
-        required=False
-    )
+    # 4 поле
     description_input = discord.ui.TextInput(
         label="Описание (необязательно)", 
         style=discord.TextStyle.paragraph, 
         max_length=500, 
         required=False
     )
+    # 5 поле
     avatar_input = discord.ui.TextInput(
         label="Ссылка на аватарку", 
         required=False
@@ -43,13 +39,13 @@ class CreateCinemaModal(discord.ui.Modal, title="🎬 Создание кино�
 
     async def on_submit(self, interaction: discord.Interaction):
         from create import process_cinema_creation
+        
+        # Извлекаем доп. инфо и передаем как один блок
         await process_cinema_creation(
             interaction,
             title=self.title_input.value.strip(),
             year=self.year_input.value.strip() if self.year_input.value else None,
-            genre=self.genre_input.value.strip() if self.genre_input.value else None,
-            category=self.category_input.value.strip() if self.category_input.value else None,
-            duration=self.duration_input.value.strip() if self.duration_input.value else None,
+            extra_info=self.extra_info.value.strip() if self.extra_info.value else None,
             description=self.description_input.value.strip() if self.description_input.value else None,
             avatar_url=self.avatar_input.value.strip() if self.avatar_input.value else None,
         )
