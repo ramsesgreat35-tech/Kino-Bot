@@ -6,18 +6,17 @@ from config import INSTRUCTION_CHANNEL_ID, PING_ROLE_ID
 
 class CreateCinemaModal(discord.ui.Modal, title="🎬 Создание кинотеатра"):
     title_input = discord.ui.TextInput(label="Название", max_length=80, required=True)
-    # Тут пишем: 2011, Фантастика, 18+, 1ч 49м
-    meta_input = discord.ui.TextInput(label="Год, Жанр, Возраст, Время", placeholder="2011, Фантастика, 18+, 1ч 49м", max_length=100, required=False)
+    year_input = discord.ui.TextInput(label="Год (например, 2011)", max_length=4, required=False)
+    meta_input = discord.ui.TextInput(label="Жанр, Возраст, Время", placeholder="Фантастика, 18+, 1ч 49м", max_length=100, required=False)
     description_input = discord.ui.TextInput(label="Описание", style=discord.TextStyle.paragraph, max_length=1000, required=False)
-    avatar_input = discord.ui.TextInput(label="Ссылка на аватарку (обложку)", required=False)
-    # Пятое поле (пустышка, чтобы Discord не ругался, если захочешь что-то добавить потом)
-    dummy_input = discord.ui.TextInput(label="Не заполнять", required=False) 
+    avatar_input = discord.ui.TextInput(label="Ссылка на картинку", required=False)
 
     async def on_submit(self, interaction: discord.Interaction):
         from create import process_cinema_creation
         await process_cinema_creation(
             interaction,
             title=self.title_input.value.strip(),
+            year=self.year_input.value.strip() if self.year_input.value else None,
             meta=self.meta_input.value.strip() if self.meta_input.value else None,
             description=self.description_input.value.strip() if self.description_input.value else None,
             avatar_url=self.avatar_input.value.strip() if self.avatar_input.value else None,
