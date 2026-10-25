@@ -21,8 +21,14 @@ async def process_cinema_creation(
 
     await interaction.response.defer(ephemeral=True, thinking=True)
     try:
-        await create_cinema_voice(interaction, title, year_rating, meta, description, avatar_url)
-        await interaction.followup.send("✅ Кинотеатр создан! Заходи в войс.", ephemeral=True)
+        # Создаем канал и получаем его объект
+        voice_channel = await create_cinema_voice(interaction, title, year_rating, meta, description, avatar_url)
+        
+        # Отправляем юзеру ссылку на его канал (видит только он)
+        await interaction.followup.send(
+            f"✅ Кинотеатр создан!\n▶️ [Нажми сюда, чтобы зайти в войс](https://discord.com/channels/{interaction.guild.id}/{voice_channel.id})", 
+            ephemeral=True
+        )
     except Exception as e:
         await interaction.followup.send(f"❌ Ошибка: `{e}`", ephemeral=True)
 
@@ -60,38 +66,46 @@ async def create_cinema_voice(
         age = parts[1] if len(parts) > 1 else "-"
         duration = parts[2] if len(parts) > 2 else "-"
 
-    # --- 1 ЭМБЕД: ТОЛЬКО КАРТИНКА ---
-    if avatar_url:
-        embed_img = discord.Embed(color=0x2ECC71)
-        embed_img.set_image(url=avatar_url)
-        await voice_channel.send(embed=embed_img)
-
-    # --- 2 ЭМБЕД: ТЕКСТ ---
-    title_str = f"# <:emoji_2:1544441724225720350>{title}"
+    # --- ТЕКСТ ДЛЯ КАНАЛА ЛОГОВ ---
+    title_str = f"# 🍿 {title}"
     if year:
         title_str += f" (Фильм {year})"
     
     desc_str = ""
     if description:
-        desc_str = f"> <:emoji_3:1549860670932254840>** {description} **\n"
+        desc_str = f"> 📝 ** {description} **\n"
     
-    # Формируем строку с временем
     current_time = int(time.time())
 
     text_content = (
         f"{title_str}\n"
         f"{desc_str}"
-        f"> **<:emoji_6:1553507905561432115>Жанры: **{genre}\n"
-        f"> **<:emoji_5:1544441995412373595>Рейтинг:** {rating}   **<:emoji_4:1544432963243221073>Категория:** {age}   **<:emoji_1:1549861320810307604>Длительность:** {duration}\n"
-        f"### <a:hearts_pink:1521120519003443270>**Проводит:** {owner.mention}\n"
-        f"### <a:hearts_pink:1521120519003443270>**Место:**  {voice_channel.mention}\n"
-        f"### <a:hearts_pink:1521120519003443270>**Время проведения:** <t:{current_time}:f>"
+        f"> 🎭 **Жанры: **{genre}\n"
+        f"> ⭐ **Рейтинг:** {rating}   🔞 **Категория:** {age}   ⏱️ **Длительность:** {duration}\n"
+        f"### 💖 **Проводит:** {owner.mention}\n"
+        f"### 💖 **Место:**  {voice_channel.mention}\n"
+        f"### 💖 **Время проведения:** <t:{current_time}:f>"
+    )
+
+    # 1. ОТПРАВЛЯЕМ В КАНАЛ ЛОГОВ (Скрытый пинг + вся красота)
+    log_channel = guild.get_channel(LOG_CHANNEL_ID)
+    if log_channel:
+        log_embed = discord.Embed(color=0x2ECC71, description=text_content)
+        if avatar_url:
+            log_embed.set_image(url=avatar_url) # Картинка прямо в лог-эмбеде
+        
+        await log_channel.send(content=f"|| <@&{PING_ROLE_ID}> ||", embed=log_embed)
+
+    # 2. ОТПРАВЛЯЕМ В ЧАТ ВОЙСА (Только хост и кнопка закрытия)
+    from control import CinemaPanelView
+    view = CinemaPanelView(owner_id=owner.id, voice_id=voice_channel.id)
+    
+    panel_embed = discord.Embed(
+        color=0x2ECC71,
+        description=f"👑 Хост: {owner.mention}\n> Нажмите кнопку ниже, чтобы завершить просмотр."
     )
     
-    embed_text = discord.Embed(color=0x2ECC71, description=text_content)
-    
-    # Отправляем скрытый пинг отдельно от эмбеда, чтобы не ломался Markdown
-    await voice_channel.send(content=f"|| <@&{PING_ROLE_ID}> ||", embed=embed_text)
+    await voice_channel.send(embed=panel_embed, view=view)
 
     # --- СОХРАНЯЕМ ---
     bot.cinemas[voice_channel.id] = {
@@ -100,23 +114,6 @@ async def create_cinema_voice(
         "title": title,
     }
     bot.save_cinemas()
-
-    # --- ЛОГ-КАНАЛ ---
-    log_channel = guild.get_channel(LOG_CHANNEL_ID)
-    if log_channel:
-        log_embed = discord.Embed(color=0x2ECC71, description=text_content)
-        await log_channel.send(embed=log_embed)
-
-    # --- ПАНЕЛЬ УПРАВЛЕНИЯ ---
-    from control import CinemaPanelView
-    view = CinemaPanelView(owner_id=owner.id, voice_id=voice_channel.id)
-    
-    panel_embed = discord.Embed(
-        color=0x2ECC71,
-        description=f"👑 {owner.mention}, управление показом.\n> Нажмите кнопку ниже, чтобы закрыть кинотеатр."
-    )
-    
-    await voice_channel.send(embed=panel_embed, view=view)
 
     return voice_channel
 
