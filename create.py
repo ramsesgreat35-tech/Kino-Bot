@@ -21,12 +21,22 @@ async def process_cinema_creation(
 
     await interaction.response.defer(ephemeral=True, thinking=True)
     try:
-        # Создаем канал и получаем его объект
         voice_channel = await create_cinema_voice(interaction, title, year_rating, meta, description, avatar_url)
         
-        # Отправляем юзеру ссылку на его канал (видит только он)
+        # --- ССЫЛКА В ВИДЕ КНОПКИ ---
+        class LinkView(discord.ui.View):
+            def __init__(self):
+                super().__init__()
+                self.add_item(discord.ui.Button(
+                    label="Зайти в войс", 
+                    style=discord.ButtonStyle.link, 
+                    url=f"https://discord.com/channels/{interaction.guild.id}/{voice_channel.id}",
+                    emoji="🔊"
+                ))
+
         await interaction.followup.send(
-            f"✅ Кинотеатр создан!\n▶️ [Нажми сюда, чтобы зайти в войс](https://discord.com/channels/{interaction.guild.id}/{voice_channel.id})", 
+            f"✅ Кинотеатр создан! Нажми на кнопку ниже, чтобы зайти в свой канал.", 
+            view=LinkView(), 
             ephemeral=True
         )
     except Exception as e:
@@ -66,22 +76,22 @@ async def create_cinema_voice(
         age = parts[1] if len(parts) > 1 else "-"
         duration = parts[2] if len(parts) > 2 else "-"
 
-    # --- ТЕКСТ ДЛЯ КАНАЛА ЛОГОВ ---
+    # --- ТЕКСТ ДЛЯ ЛОГ-КАНАЛА (ТОЛЬКО СТАНДАРТНЫЕ ЭМОДЗИ) ---
     title_str = f"# 🍿 {title}"
     if year:
         title_str += f" (Фильм {year})"
     
     desc_str = ""
     if description:
-        desc_str = f"> 📝 ** {description} **\n"
+        desc_str = f"> 📝 ** {description} **\n\n"
     
     current_time = int(time.time())
 
     text_content = (
         f"{title_str}\n"
         f"{desc_str}"
-        f"> 🎭 **Жанры: **{genre}\n"
-        f"> ⭐ **Рейтинг:** {rating}   🔞 **Категория:** {age}   ⏱️ **Длительность:** {duration}\n"
+        f"> 🎭 **Жанры:** {genre}\n"
+        f"> ⭐ **Рейтинг:** {rating}   🔞 **Категория:** {age}   ⏱️ **Длительность:** {duration}\n\n"
         f"### 💖 **Проводит:** {owner.mention}\n"
         f"### 💖 **Место:**  {voice_channel.mention}\n"
         f"### 💖 **Время проведения:** <t:{current_time}:f>"
@@ -92,7 +102,7 @@ async def create_cinema_voice(
     if log_channel:
         log_embed = discord.Embed(color=0x2ECC71, description=text_content)
         if avatar_url:
-            log_embed.set_image(url=avatar_url) # Картинка прямо в лог-эмбеде
+            log_embed.set_image(url=avatar_url)
         
         await log_channel.send(content=f"|| <@&{PING_ROLE_ID}> ||", embed=log_embed)
 
