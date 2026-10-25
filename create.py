@@ -5,6 +5,37 @@ import time
 
 from config import CINEMA_CATEGORY_ID, PING_ROLE_ID, LOG_CHANNEL_ID
 
+# --- ФУНКЦИИ ДЛЯ ПРОВЕРКИ ВАЛИДНОСТИ ---
+def check_year(val):
+    if not val: return "не указано"
+    try:
+        y = int(val)
+        # Адекватный год для фильма (от появления кинематографа до будущего)
+        if 1888 <= y <= 2100:
+            return str(y)
+    except ValueError:
+        pass
+    return "не указано"
+
+def check_rating(val):
+    if not val: return "не указано"
+    try:
+        r = float(val.replace(',', '.'))
+        # Адекватный рейтинг от 0 до 10
+        if 0.0 <= r <= 10.0:
+            return str(val)
+    except ValueError:
+        pass
+    return "не указано"
+
+def check_text(val):
+    if not val: return "не указано"
+    # Если это просто набор цифр (например, 111 или 2121), считаем это абсурдом
+    if val.strip().isdigit(): 
+        return "не указано"
+    return val
+
+
 async def process_cinema_creation(
     interaction: discord.Interaction,
     *,
@@ -23,7 +54,6 @@ async def process_cinema_creation(
     try:
         voice_channel = await create_cinema_voice(interaction, title, year_rating, meta, description, avatar_url)
         
-        # Ссылка в виде кнопки
         class LinkView(discord.ui.View):
             def __init__(self):
                 super().__init__()
@@ -63,36 +93,42 @@ async def create_cinema_voice(
     voice_channel = await guild.create_voice_channel(name=f"🎬 {title}"[:100], category=category_ch, overwrites=voice_overwrites, position=0)
 
     # --- РАЗБИРАЕМ ДАННЫЕ ---
-    year, rating = "", "-"
+    year, rating = None, None
     if year_rating:
         parts = [p.strip() for p in year_rating.split(",")]
-        year = parts[0] if len(parts) > 0 else ""
-        rating = parts[1] if len(parts) > 1 else "-"
+        year = parts[0] if len(parts) > 0 else None
+        rating = parts[1] if len(parts) > 1 else None
 
-    genre, age, duration = "-", "-", "-"
+    genre, age, duration = None, None, None
     if meta:
         parts = [p.strip() for p in meta.split(",")]
-        genre = parts[0] if len(parts) > 0 else "-"
-        age = parts[1] if len(parts) > 1 else "-"
-        duration = parts[2] if len(parts) > 2 else "-"
+        genre = parts[0] if len(parts) > 0 else None
+        age = parts[1] if len(parts) > 1 else None
+        duration = parts[2] if len(parts) > 2 else None
 
-    # --- ТЕКСТ ДЛЯ ЛОГ-КАНАЛА (ТОЛЬКО СТАНДАРТНЫЕ ЭМОДЗИ) ---
+    # --- ПРОВЕРКА ЧЕРЕЗ ФУНКЦИИ ---
+    clean_year = check_year(year)
+    clean_rating = check_rating(rating)
+    clean_genre = check_text(genre)
+    clean_age = check_text(age)
+    clean_duration = check_text(duration)
+    
+    # Описание тоже чистим от спама, если надо, но пока оставим как есть
+    clean_desc = description if description else "не указано"
+
+    # --- ТЕКСТ ДЛЯ ЛОГ-КАНАЛА ---
     title_str = f"# 🍿 {title}"
-    if year:
-        title_str += f" (Фильм {year})"
+    if clean_year != "не указано":
+        title_str += f" (Фильм {clean_year})"
     
-    desc_str = ""
-    if description:
-        desc_str = f"> 📝 ** {description} **\n\n"
-    
+    desc_str = f"> 📝 ** {clean_desc} **\n\n"
     current_time = int(time.time())
 
     text_content = (
         f"{title_str}\n"
-        f"> [ОБНОВЛЕНО] Если ты видишь этот текст, значит код обновился!\n\n"
         f"{desc_str}"
-        f"> 🎭 **Жанры:** {genre}\n"
-        f"> ⭐ **Рейтинг:** {rating}   🔞 **Категория:** {age}   ⏱️ **Длительность:** {duration}\n\n"
+        f"> 🎭 **Жанры:** {clean_genre}\n"
+        f"> ⭐ **Рейтинг:** {clean_rating}   🔞 **Категория:** {clean_age}   ⏱️ **Длительность:** {clean_duration}\n\n"
         f"### 💖 **Проводит:** {owner.mention}\n"
         f"### 💖 **Место:**  {voice_channel.mention}\n"
         f"### 💖 **Время проведения:** <t:{current_time}:f>"
