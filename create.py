@@ -23,7 +23,7 @@ async def process_cinema_creation(
     try:
         voice_channel = await create_cinema_voice(interaction, title, year_rating, meta, description, avatar_url)
         
-        # --- ССЫЛКА В ВИДЕ КНОПКИ ---
+        # Ссылка в виде кнопки
         class LinkView(discord.ui.View):
             def __init__(self):
                 super().__init__()
@@ -89,6 +89,7 @@ async def create_cinema_voice(
 
     text_content = (
         f"{title_str}\n"
+        f"> [ОБНОВЛЕНО] Если ты видишь этот текст, значит код обновился!\n\n"
         f"{desc_str}"
         f"> 🎭 **Жанры:** {genre}\n"
         f"> ⭐ **Рейтинг:** {rating}   🔞 **Категория:** {age}   ⏱️ **Длительность:** {duration}\n\n"
@@ -97,7 +98,7 @@ async def create_cinema_voice(
         f"### 💖 **Время проведения:** <t:{current_time}:f>"
     )
 
-    # 1. ОТПРАВЛЯЕМ В КАНАЛ ЛОГОВ (Скрытый пинг + вся красота)
+    # 1. ОТПРАВЛЯЕМ В КАНАЛ ЛОГОВ
     log_channel = guild.get_channel(LOG_CHANNEL_ID)
     if log_channel:
         log_embed = discord.Embed(color=0x2ECC71, description=text_content)
@@ -106,7 +107,7 @@ async def create_cinema_voice(
         
         await log_channel.send(content=f"|| <@&{PING_ROLE_ID}> ||", embed=log_embed)
 
-    # 2. ОТПРАВЛЯЕМ В ЧАТ ВОЙСА (Только хост и кнопка закрытия)
+    # 2. ОТПРАВЛЯЕМ В ЧАТ ВОЙСА
     from control import CinemaPanelView
     view = CinemaPanelView(owner_id=owner.id, voice_id=voice_channel.id)
     
